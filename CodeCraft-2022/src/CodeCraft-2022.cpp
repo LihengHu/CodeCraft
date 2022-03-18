@@ -3,19 +3,21 @@
 #include <vector>
 #include <iterator>
 #include <string>
-#include <algorithm>
 
-//#define CONFIG_PATH  "../data/config.ini"
-//#define SITE_BANDWIDTH_PATH  "../data/site_bandwidth.csv"
-//#define QOS_PATH  "../data/qos.csv"
-//#define DEMAND_PATH  "../data/demand.csv"
-//#define OUTPUT_PATH  "../output/solution.txt"
 
-#define CONFIG_PATH  "/data/config.ini"
-#define SITE_BANDWIDTH_PATH  "/data/site_bandwidth.csv"
-#define QOS_PATH  "/data/qos.csv"
-#define DEMAND_PATH  "/data/demand.csv"
-#define OUTPUT_PATH  "/output/solution.txt"
+//本地路径
+#define CONFIG_PATH  "../../../data/config.ini"
+#define SITE_BANDWIDTH_PATH  "../../../data/site_bandwidth.csv"
+#define QOS_PATH  "../../../data/qos.csv"
+#define DEMAND_PATH  "../../../data/demand.csv"
+#define OUTPUT_PATH  "../../../output/solution.txt"
+
+//提交华为官网的路径
+//#define CONFIG_PATH  "/data/config.ini"
+//#define SITE_BANDWIDTH_PATH  "/data/site_bandwidth.csv"
+//#define QOS_PATH  "/data/qos.csv"
+//#define DEMAND_PATH  "/data/demand.csv"
+//#define OUTPUT_PATH  "/output/solution.txt"
 /**
  * String split by delimiters
  */
