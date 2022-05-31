@@ -3,6 +3,7 @@
 #include <vector>
 #include <iterator>
 #include <string>
+#include <cmath>
 
 
 //本地路径
@@ -21,6 +22,7 @@
 /**
  * String split by delimiters
  */
+
 static std::vector<std::string> split(const std::string& s, const std::string& delimiters = ",")
 {
     std::vector<std::string> tokens;
@@ -115,7 +117,7 @@ void readSiteBandWidth(int* siteBandWidth,std::string* siteName)
  * read qos
  * 返回qos列数获取客户节点数目
  */
-void readQos(std::string* clientName,std::vector<std::vector<int>>& sitesOfClient, std::vector<std::vector<int>>& clientsOfSite, int QOS_LIMIT)
+void readQos(std::string* clientName,std::vector<std::vector<int>>& sitesOfClient, std::vector<std::vector<int>>& clientsOfSite, int QOS_LIMIT,std::string * siteName,int siteNum)
 {
     std::ifstream data;
     std::string tmp_line;
@@ -133,11 +135,22 @@ void readQos(std::string* clientName,std::vector<std::vector<int>>& sitesOfClien
         sitesOfClient.emplace_back(temp);
     }
 
-    int index = 0;
     //while (getline(data, tmp_line))
     while (data>>tmp_line)
     {
-        clientsOfSite.emplace_back(temp);
+        int index = 0;//寻找index
+        std::vector<std::string> tmpForName;
+        tmpForName = split(tmp_line, ",");
+        while (tmpForName[0] != siteName[index])
+        {
+            index++;
+            if (index >= siteNum)
+            {
+                printf("error \n");
+            }
+
+        }
+        //clientsOfSite.emplace_back(temp);
         tmp_vec2 = std::move(split2(tmp_line, ","));
         for (int k = 0; k < tmp_vec2.size(); ++k)//indx指示边缘节点， k指示客户节点
         {
@@ -170,14 +183,31 @@ int getClientSiteNum()
 /**
  * read demand
  */
-void readDemand(int** demand)
+void readDemand(int** demand,std::string *clientName,int clientNum)
 {
     std::ifstream data;
     std::string tmp_line;
     std::vector<int> tmp_vec;
+    std::vector<std::string> tempForCiteName;
+    std::vector<int> tempForCiteNameIndx;
     data.open(DEMAND_PATH);
     //getline(data, tmp_line);
     data >> tmp_line;
+    tempForCiteName = split(tmp_line, ",");
+    for (int i = 1; i < tempForCiteName.size(); i++)
+    {
+        int ii = 0;
+        while (tempForCiteName[i] != clientName[ii])
+        {
+            ii++;
+            if (ii > clientNum)
+            {
+                printf("error citeNum\n");
+                break;
+            }
+        }
+        tempForCiteNameIndx.emplace_back(ii);
+    }
     int counter = 0;
     //while (getline(data, tmp_line))
     while(data >> tmp_line)
@@ -185,7 +215,8 @@ void readDemand(int** demand)
         tmp_vec = split2(tmp_line, ",");
         for (int j = 0; j < tmp_vec.size(); ++j)
         {
-            demand[counter][j] = tmp_vec[j];
+            int indx = tempForCiteNameIndx[j];
+            demand[counter][indx] = tmp_vec[indx];
         }
         counter++;
     }
@@ -218,7 +249,6 @@ void Output(std::string* clientName, std::string* siteName, int*** resultForOutp
     std::ofstream outfile(OUTPUT_PATH);
     for (int i = 0; i < timeNum; i++)
     {
-
         for (int j = 0; j < clientNum; j++)
         {
             outfile << clientName[j] << ":";
@@ -253,8 +283,11 @@ void Output(std::string* clientName, std::string* siteName, int*** resultForOutp
     //fclose(fid);
 }
 
+
+
 int main()
 {
+    srand(1222);
     const int QOS_LIMIT = readConf();
     const int siteNum = getSiteNum();
     int* siteBandWidth = new int[siteNum];
@@ -265,17 +298,17 @@ int main()
     //        printf("name:%s,bw=%d \n", siteName[i].c_str(), siteBandWidth[i]);
     //}
     std::vector<std::vector<int>> sitesOfClient;//对于某个客户节点符合qos的边缘节点列表
-    std::vector<std::vector<int>> clientsOfSite;//对于某个边缘节点符合qos的可承担任务的客户节点列表
+    std::vector<std::vector<int>> clientsOfSite(siteNum);//对于某个边缘节点符合qos的可承担任务的客户节点列表
     const int clientNum = getClientSiteNum();
     std::string* clientName = new std::string[clientNum];
-    readQos(clientName, sitesOfClient, clientsOfSite, QOS_LIMIT);
+    readQos(clientName, sitesOfClient, clientsOfSite, QOS_LIMIT, siteName, siteNum);
     const int timeNum = getTimeNum();
     int** demand = new int*[timeNum];
     for (int i = 0; i < timeNum; i++)
     {
         demand[i] = new int[clientNum];
     }
-    readDemand(demand);
+    readDemand(demand, clientName, clientNum);
     //for (int i = 0; i < timeNum; i++)
     //{
     //    for (int j = 0; j < clientNum; j++)
@@ -291,8 +324,6 @@ int main()
     {
         distribute[i] = new int[timeNum]();
     }
-    //建立一个长siteNum数组，用于存储对应site最大值
-    int* siteMaxBW = new int[siteNum]();
 
     //建立timeNum个长为clientNum的siteNum的二维数组,用于存储分配结果
     int*** resultForOutput = new int**[timeNum];
@@ -314,47 +345,185 @@ int main()
             demandBank[i][j] = demand[i][j];
         }
     }
+    //获取site顺序
+    //std::vector<std::pair<int, int>>siteIndx;
+    //for (int i = 0; i < siteNum; ++i)
+    //{
+    //    siteIndx.emplace_back(i, clientsOfSite[i].size());
+    //}
+    //std::sort(siteIndx.begin(), siteIndx.end(), [&](std::pair<int, int> x, std::pair<int, int> y) {return x.second > y.second; });//降序
 
-    for(int i = 0;i<timeNum ;i++)//遍历每个时间点
+
+
+    //按时间顺序逐步分配 (后面可以优化成按带宽压力大小顺序)
+    for (int t = 0; t < timeNum; t++)
     {
-        //每次遍历时间点都要对边缘节点带宽恢复初始值
-        int* siteBandWidth_copy = new int [siteNum];
-        for(int a = 0 ;a<siteNum ;a++)
+        for (int c = 0; c < clientNum; c++)
         {
-            siteBandWidth_copy[a] = siteBandWidth[a];
-        }
-        for(int j = clientNum-1 ;j>=0 ; j--)//遍历每个用户
-        {
-            int need = demand[i][j];//每个客户需要的流量
-            std::vector<int> sites = sitesOfClient[j];//该客户能到达的边缘节点的序列
-            for(int index= sites.size()-1 ;index>=0 ;index--)//遍历能到达的边缘节点
+            int flow = demand[t][c];
+            int siteCounter = 0;//可分配site数量
+            for (int si = 0; si < sitesOfClient[c].size(); si++)
             {
-                if(need == 0)//need为0即客户获得所需流量
+                int s = sitesOfClient[c][si];
+                if (distribute[s][t] < siteBandWidth[s])
                 {
-                    break;
+                    siteCounter++;
                 }
-                int k = sites[index];//该边缘节点的序号
-                int bandwidth = siteBandWidth_copy[k];//该边缘节点的带宽
-                if(need <= bandwidth)//如果所需小于带宽
+            }
+            while (flow > 0)
+            {
+                int averFlow = flow / siteCounter + 1;//加一避免因为精度丢失导致没有全部分配
+                for (int si = 0; si < sitesOfClient[c].size(); si++)
                 {
-                    siteBandWidth_copy[k] = siteBandWidth_copy[k]-need;//减掉用去的带宽
-                    resultForOutput[i][j][k] =  need;//i时间点，j客户向k节点申请的流量
-                    need = 0;//所需归0
-                }
-                else
-                {
-                    need = need - siteBandWidth_copy[k];//获取剩余的所需
-                    resultForOutput[i][j][k] = siteBandWidth_copy[k];
-                    siteBandWidth_copy[k] = 0;
+                    int s = sitesOfClient[c][si];
+                    if (flow == 0)
+                    {
+                        break;
+                    }
+                    if (distribute[s][t] < siteBandWidth[s])
+                    {
+                        if (flow < averFlow)//由于+1的存在，导致最后一组averFlow已经多于flow了
+                        {
+                            averFlow = flow;
+                        }
+                        if (distribute[s][t] + averFlow < siteBandWidth[s])//
+                        {
+                            distribute[s][t] = distribute[s][t] + averFlow;
+                            resultForOutput[t][c][s] = resultForOutput[t][c][s] + averFlow;
+                            flow = flow - averFlow;
+                        }
+                        else
+                        {
+                            int canFlow = siteBandWidth[s] - distribute[s][t];
+                            distribute[s][t] = distribute[s][t] + canFlow;
+                            resultForOutput[t][c][s] = resultForOutput[t][c][s] + canFlow;
+                            flow = flow - canFlow;
+                            siteCounter--;//节点达到最大限制以后，对可分配节点计数减一
+                        }
+                    }
                 }
             }
         }
     }
 
 
+    /***********************************反向检查后一半数据******************************/
+    int* siteIndxNum = new int[siteNum]();
+    for (int reNum = 1; reNum < 100; reNum++)
+    {
+        std::vector<std::vector<std::pair<int, int>>>distributeInsiteAll;
+        std::vector<int>distributeSplitVlaue1, distributeSplitVlaue2;
+        for (int s = 0; s < siteNum; s++)
+        {
+            std::vector<std::pair<int, int>> distributeInsite;
+            for (int t = 0; t < timeNum; ++t)
+            {
+                distributeInsite.emplace_back(t, distribute[s][t]);
+            }
+            std::sort(distributeInsite.begin(), distributeInsite.end(), [&](std::pair<int, int> x, std::pair<int, int> y) {return x.second < y.second; }); // 升序
+            distributeInsiteAll.emplace_back(distributeInsite);
+            distributeSplitVlaue1.emplace_back(distributeInsite[std::ceil((timeNum * (0 + reNum * 0.95 / 100)))].second);//分界值
+            distributeSplitVlaue2.emplace_back(distributeInsite[(timeNum * 0.95)+1].second);//分界值，减一是因为数组下标从0开始
+        }
+
+        //3 2917___
+        for (int si = 0; si < siteNum * 3; si++)
+        {
+            //randPerm(siteIndxNum, siteNum);
+            //int s = siteIndxNum[si];
+            int s = (rand() % (siteNum - 0)) + 0;
+            int halfTimeeNum = static_cast<int>((timeNum * 0.93));
+            int startNum = timeNum - 1;
+            if (reNum > 90)
+            {
+                startNum = std::ceil(timeNum * 0.97);//0.97 282
+            }
+            for (int i = startNum; i > halfTimeeNum; i--)
+            {
+                int t = distributeInsiteAll[s][i].first;//取到节点s未优化过的流量最大的时刻t
+                int maxBwDiff = distributeInsiteAll[s][i].second - distributeInsiteAll[s][static_cast<int>(timeNum * 0)].second;//理论上值得分流出去的最大带宽
+
+                for (int j = 0; j < clientsOfSite[s].size(); j++)//通过对应的client查看能否分流
+                {
+                    if (maxBwDiff <= 0)
+                    {
+                        break;
+                    }
+                    int c = clientsOfSite[s][j];
+                    int canOutput = resultForOutput[t][c][s];
+                    canOutput = std::min(canOutput, maxBwDiff);//避免过度流出
+                    for (int k = 0; k < sitesOfClient[c].size(); k++)//寻找流出目标
+                    {
+                        if (canOutput <= 0)//可以流出的已经全部流出
+                        {
+                            break;
+                        }
+                        int ss = sitesOfClient[c][k];
+                        if (distribute[ss][t] < distributeSplitVlaue1[ss] && distribute[ss][t] < siteBandWidth[ss])//如果t时刻的节点ss带宽小于分界值则向他流出
+                        {
+                            //int canInput = (distributeSplitVlaue1[ss] - distribute[ss][t]) / 2;//仅使用一半，其余一半留给其他节点优化
+                            int canInput;
+                            if (distributeSplitVlaue1[ss] < siteBandWidth[ss])
+                            {
+                                canInput = (distributeSplitVlaue1[ss] - distribute[ss][t]) / 2;//仅使用一半，其余一半留给其他节点优化
+                            }
+                            else
+                            {
+                                canInput = (siteBandWidth[ss] - distribute[ss][t]) / 2;//仅使用一半，其余一半留给其他节点优化
+                            }
+                            int flow = std::min(canOutput, canInput);//以可流出与可流入中的小值为流动量
+                            if (distribute[s][t] - flow >= 0 && distribute[ss][t] + flow <= siteBandWidth[ss])
+                            {
+                                resultForOutput[t][c][s] = resultForOutput[t][c][s] - flow;
+                                distribute[s][t] = distribute[s][t] - flow;
+
+                                resultForOutput[t][c][ss] = resultForOutput[t][c][ss] + flow;
+                                distribute[ss][t] = distribute[ss][t] + flow;
+
+                                maxBwDiff = maxBwDiff - flow;//优化进度
+                                canOutput = canOutput - flow;//可流出减少，准备寻找下一个可流入节点
+                            }
+                        }
+                        else if (distribute[ss][t] > distributeSplitVlaue2[ss] && distribute[ss][t] < siteBandWidth[ss])//如果t时刻的节点ss带宽大于分界值则尽量塞满该节点
+                        {
+                            int canInput = (siteBandWidth[ss] - distribute[ss][t]) / 2;//仅使用一半，其余一半留给其他节点优化
+                            int flow = std::min(canOutput, canInput);//以可流出与可流入中的小值为流动量
+                            if (distribute[s][t] - flow >= 0 && distribute[ss][t] + flow <= siteBandWidth[ss])
+                            {
+                                resultForOutput[t][c][s] = resultForOutput[t][c][s] - flow;
+                                distribute[s][t] = distribute[s][t] - flow;
+
+                                resultForOutput[t][c][ss] = resultForOutput[t][c][ss] + flow;
+                                distribute[ss][t] = distribute[ss][t] + flow;
+
+                                maxBwDiff = maxBwDiff - flow;//优化进度
+                                canOutput = canOutput - flow;//可流出减少，准备寻找下一个可流入节点
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+
+
+
     Output(clientName, siteName, resultForOutput, clientNum, siteNum, timeNum);
 
+    //计算分数
+    int score = 0;
+    for (int i = 0; i < siteNum; i++)
+    {
+        std::sort(distribute[i], distribute[i] + timeNum, std::less<int>());
+        int t95 = std::ceil(timeNum * 0.95)-1;
+        score = score + distribute[i][t95];
+    }
+    printf("score = %d\n", score);
+
     /***********结束程序*******************/
+    //delete[] siteIndxNum;
     for (int i = 0; i < timeNum; i++)
     {
         for (int j = 0; j < clientNum; j++)
